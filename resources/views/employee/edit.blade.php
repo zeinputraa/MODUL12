@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="container-sm my-5">
-        <form action="{{ route('employees.update', ['employee' => $employee->id]) }}" method="POST">
+        <form action="{{ route('employees.update', ['employee' => $employee->id]) }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('put')
             <div class="row justify-content-center">
@@ -59,6 +59,23 @@
                                 <div class="text-danger"><small>{{ $message }}</small></div>
                             @enderror
                         </div>
+                        <div class="mt-4">
+                            <label for="cv" class="form-label">Curriculum Vitae (CV)</label>
+                            @if ($employee->original_filename)
+                            <h5>{{ $employee->original_filename }}</h5>
+                            <a href="{{ route('employees.downloadFile', ['employeeId' => $employee->id]) }}" class="btn btn-primary btn-sm mt-2">
+                                <i class="bi bi-download me-1"></i> Download CV
+                            </a>
+
+                            <label for="cv" class="form-label"></label>
+                                <a href="#" class="btn btn-danger btn-sm mt-2">Hapus CV</a>
+                            @else
+                                <h5>Tidak ada</h5>
+                            @endif
+                            <br><br>
+                            <input type="file" class="form-control" id="cv" name="cv" accept=".pdf,.doc,.docx">
+                        </div>
+
                     </div>
                     <hr>
                     <div class="row">

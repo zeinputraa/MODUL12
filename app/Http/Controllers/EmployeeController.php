@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\Position;
+use Illuminate\Support\Facades\Storage;
 
 class EmployeeController extends Controller
 {
@@ -61,6 +62,17 @@ class EmployeeController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        // Get File
+        $file = $request->file('cv');
+
+        if ($file != null) {
+            $originalFilename = $file->getClientOriginalName();
+            $encryptedFilename = $file->hashName();
+
+            // Store File
+            $file->store('public/files');
+        }
+
         // ELOQUENT
         $employee = New Employee;
         $employee->firstname = $request->firstName;
@@ -68,11 +80,16 @@ class EmployeeController extends Controller
         $employee->email = $request->email;
         $employee->age = $request->age;
         $employee->position_id = $request->position;
+
+        if ($file != null) {
+            $employee->original_filename = $originalFilename;
+            $employee->encrypted_filename = $encryptedFilename;
+        }
+
         $employee->save();
 
         return redirect()->route('employees.index');
     }
-
     /**
      * Display the specified resource.
      */
@@ -130,6 +147,28 @@ class EmployeeController extends Controller
         $employee->email = $request->email;
         $employee->age = $request->age;
         $employee->position_id = $request->position;
+
+        $file = $request->file('cv');
+
+        if ($file) {
+            // Hapus file CV lama jika ada
+            if ($employee->encrypted_filename) {
+                $oldFile = 'public/files/' . $employee->encrypted_filename;
+                if (Storage::exists($oldFile)) {
+                    Storage::delete($oldFile);
+                }
+            }
+
+            // Simpan file CV baru
+            $originalFilename = $file->getClientOriginalName();
+            $encryptedFilename = $file->hashName();
+
+            $file->store('public/files');
+
+            $employee->original_filename = $originalFilename;
+            $employee->encrypted_filename = $encryptedFilename;
+        }
+
         $employee->save();
 
         return redirect()->route('employees.index');
@@ -141,8 +180,49 @@ class EmployeeController extends Controller
     public function destroy(string $id)
     {
         // ELOQUENT
-        Employee::find($id)->delete();
+        $employee = Employee::findOrFail($id);
+
+        // Hapus file CV jika ada
+        if ($employee->encrypted_filename) {
+            $filePath = 'public/files/' . $employee->encrypted_filename;
+            if (Storage::exists($filePath)) {
+                Storage::delete($filePath);
+            }
+        }
+
+        // Hapus data employee dari database
+        $employee->delete();
 
         return redirect()->route('employees.index');
+    }
+
+    public function downloadFile($employeeId)
+    {
+        $employee = Employee::find($employeeId);
+        $encryptedFilename = 'public/files/'.$employee->encrypted_filename;
+        $downloadFilename = Str::lower($employee->firstname.'_'.$employee->lastname.'_cv.pdf');
+
+        if(Storage::exists($encryptedFilename)) {
+            return Storage::download($encryptedFilename, $downloadFilename);
+        }
+    }
+
+    public function deleteCV(Employee $employee)
+    {
+        // Cek jika ada file CV yang terupload
+        if ($employee->cv_path) {
+            // Hapus file dari storage
+            Storage::delete($employee->cv_path);
+
+            // Set field cv_path menjadi null atau kosong di database
+            $employee->cv_path = null;
+            $employee->original_filename = null;
+            $employee->save();
+
+            // Mengalihkan kembali dengan pesan sukses
+            return redirect()->route('employees.index')->with('success', 'CV berhasil dihapus.');
+        }
+
+        return redirect()->route('employees.index')->with('error', 'CV tidak ditemukan.');
     }
 }
