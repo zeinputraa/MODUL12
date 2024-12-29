@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\Position;
 use Illuminate\Support\Facades\Storage;
+use RealRashid\SweetAlert\Facades\Alert;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\EmployeesExport;
+use PDF;
+
+
 
 class EmployeeController extends Controller
 {
@@ -16,13 +22,11 @@ class EmployeeController extends Controller
     public function index()
     {
         $pageTitle = 'Employee List';
-
-        // ELOQUENT
-        $employees = Employee::all();
-
-        return view('employee.index', [
-            'pageTitle' => $pageTitle,
-            'employees' => $employees
+        confirmDelete();
+        $positions = Position::all();
+        return view('employee.index',[
+                'pageTitle' => $pageTitle,
+                'positions' => $positions
         ]);
     }
 
@@ -87,6 +91,7 @@ class EmployeeController extends Controller
         }
 
         $employee->save();
+        Alert::success('Added Successfully', 'Employee Data Added Successfully.');
 
         return redirect()->route('employees.index');
     }
@@ -170,6 +175,7 @@ class EmployeeController extends Controller
         }
 
         $employee->save();
+        Alert::success('Changed Successfully', 'Employee Data Changed Successfully.');
 
         return redirect()->route('employees.index');
     }
@@ -192,6 +198,8 @@ class EmployeeController extends Controller
 
         // Hapus data employee dari database
         $employee->delete();
+        Alert::success('Deleted Successfully', 'Employee Data Deleted Successfully.');
+
 
         return redirect()->route('employees.index');
     }
@@ -207,22 +215,31 @@ class EmployeeController extends Controller
         }
     }
 
-    public function deleteCV(Employee $employee)
+    public function getData(Request $request)
     {
-        // Cek jika ada file CV yang terupload
-        if ($employee->cv_path) {
-            // Hapus file dari storage
-            Storage::delete($employee->cv_path);
+        $employees = Employee::with('position');
 
-            // Set field cv_path menjadi null atau kosong di database
-            $employee->cv_path = null;
-            $employee->original_filename = null;
-            $employee->save();
-
-            // Mengalihkan kembali dengan pesan sukses
-            return redirect()->route('employees.index')->with('success', 'CV berhasil dihapus.');
+        if ($request->ajax()) {
+            return datatables()->of($employees)
+                ->addIndexColumn()
+                ->addColumn('actions', function($employee) {
+                    return view('employee.actions', compact('employee'));
+                })
+                ->toJson();
         }
+    }
 
-        return redirect()->route('employees.index')->with('error', 'CV tidak ditemukan.');
+    public function exportExcel()
+    {
+        return Excel::download(new EmployeesExport, 'employees.xlsx');
+    }
+
+    public function exportPdf()
+    {
+        $employees = Employee::all();
+
+        $pdf = PDF::loadView('employee.export_pdf', compact('employees'));
+
+        return $pdf->download('employees.pdf');
     }
 }

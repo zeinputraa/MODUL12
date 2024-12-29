@@ -110,5 +110,8 @@ Route::get('download-file/{employeeId}', [EmployeeController::class, 'downloadFi
 
 Route::get('/employees/{id}/download', [EmployeeController::class, 'downloadFile'])->name('employees.download');
 
-Route::delete('/employees/{employee}/cv', [EmployeeController::class, 'deleteCV'])->name('employees.deleteCV');
+Route::get('getEmployees', [EmployeeController::class, 'getData'])->name('employees.getData');
 
+Route::get('exportExcel', [EmployeeController::class, 'exportExcel'])->name('employees.exportExcel');
+
+Route::get('exportPdf', [EmployeeController::class, 'exportPdf'])->name('employees.exportPdf');
